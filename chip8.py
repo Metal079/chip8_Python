@@ -8,20 +8,21 @@ import bitarray
 
 def main():   
     chip8 = Chip8()
-    chip8.load_rom("test_opcode.ch8")
+    chip8.load_rom("IBM Logo.ch8")
 
     # pygame parameters
     pygame.init()
-    SIZE = width, height = 64, 32
+    SIZE = width, height = 640, 320
     BLACK = 0, 0, 0
     screen = pygame.display.set_mode(SIZE)
+    upscale = pygame.Surface((64, 32))
 
     # emulator loop
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT: sys.exit()
 
-        chip8.execute_instruction(screen)
+        chip8.execute_instruction(screen, upscale)
 
         time.sleep(0.05)
 
@@ -75,7 +76,7 @@ class Chip8:
                 start_index += 1
 
     # Decode what instruction we need to do and runs it
-    def execute_instruction(self, screen):
+    def execute_instruction(self, screen, upscale):
         instruction = self.ram[self.program_counter] + self.ram[self.program_counter + 1]
         vx = self.registers[int(instruction[1], 16)]
         vy = self.registers[int(instruction[2], 16)]
@@ -213,15 +214,13 @@ class Chip8:
                     bit = int(bit)
                     pixel_on_screen = pygame.Surface.get_at(screen, (vx+x, vy+byte))
                     if bool(pixel_on_screen[0]) ^ bool(bit):
-                        #upscale = pygame.Surface((64, 32))
-                        gfxdraw.pixel(screen, vx+x, vy+byte, WHITE)
-                        #screen.blit(pygame.transform.scale(upscale, (640, 320)), (0,0))
+                        gfxdraw.pixel(upscale, vx+x, vy+byte, WHITE)
+                        screen.blit(pygame.transform.scale(upscale, (640, 320)), (0,0)) # Upscale to window size
                         pygame.display.update()
                         self.registers[15] = 1
                     else:
-                        #upscale = pygame.Surface((64, 32))
-                        gfxdraw.pixel(screen, vx+x, vy+byte, BLACK)
-                        #screen.blit(pygame.transform.scale(upscale, (640, 320)), (0,0))
+                        gfxdraw.pixel(upscale, vx+x, vy+byte, BLACK)
+                        screen.blit(pygame.transform.scale(upscale, (640, 320)), (0,0)) # Upscale to window size
                         pygame.display.update()
                         self.registers[15] = 0
         
