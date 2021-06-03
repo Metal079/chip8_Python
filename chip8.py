@@ -2,6 +2,8 @@ import sys
 import time
 import random
 import pygame
+from pygame import gfxdraw
+import bitarray
 
 
 def main():   
@@ -57,30 +59,32 @@ class Chip8:
             self.registers.append(empty_byte)
 
         self.stack =[]
-        self.program_counter = 0
-        self.rom_instructions = [] 
+        self.program_counter = 512
+        #self.rom_instructions = [] 
         self.I = 0
         self.carry_flag = 0
 
     # Open rom file and store bytes(2 bytes at a time) in list
     def load_rom(self, rom_name):
+        start_index = 512
         with open(rom_name, "rb") as rom:
-            bytes = rom.read(2)
+            bytes = rom.read(1)
             while bytes != b"":
-                self.rom_instructions.append(bytes.hex())
-                bytes = rom.read(2)
+                self.ram[start_index] = bytes.hex()
+                bytes = rom.read(1)
+                start_index += 1
 
     # Decode what instruction we need to do and runs it
     def execute_instruction(self, screen):
-        instruction = self.rom_instructions[self.program_counter]
+        instruction = self.ram[self.program_counter] + self.ram[self.program_counter + 1]
         vx = self.registers[int(instruction[1], 16)]
         vy = self.registers[int(instruction[2], 16)]
         if instruction[0] == '0':
             if instruction == '00e0':  
                 # 00E0 Clears the screen.
-                screen.fill(0,0,0)
+                black = 0, 0, 0
+                screen.fill(black)
                 pygame.display.flip()
-                self.program_counter += 1
             
             elif instruction == '00ee':  
                 # 00EE Returns from a subroutine.
@@ -88,67 +92,55 @@ class Chip8:
         
         elif instruction[0] == '1':  
             # 1NNN Jumps to address NNN.
-            self.program_counter = int((int(instruction[1:], 16) - 2) / 4)
+            self.program_counter = int(instruction[1:], 16) - 2
         
         elif instruction[0] == '2':  
             # 2NNN Calls subroutine at NNN.
             self.stack.append(instruction[1:])
-            self.program_counter += 1
         
         elif instruction[0] == '3':  
             # 3XNN Skips the next instruction if VX equals NN. (Usually the next instruction is a jump to skip a code block)
-            if vx == int(instruction[2:]):
+            if vx == int(instruction[2:], 16):
                 self.program_counter += 2
-            else:
-                self.program_counter += 1
         
         elif instruction[0] == '4':  
             # 4XNN Skips the next instruction if VX does not equal NN. (Usually the next instruction is a jump to skip a code block)
             if vx != int(instruction[2:], 16):
                 self.program_counter += 2
-            else:
-                self.program_counter += 1
         
         elif instruction[0] == '5':  
             # 5XY0 Skips the next instruction if VX equals VY. (Usually the next instruction is a jump to skip a code block)
             if vx == vy:
                 self.program_counter += 2
-            else:
-                self.program_counter += 1
         
         elif instruction[0] == '6':  
             # 6XNN Sets VX to NN.
             vx = int(instruction[2:], 16)
-            self.program_counter += 1
+            self.registers[int(instruction[1], 16)] = vx
         
         elif instruction[0] == '7':  
             # 7XNN Adds NN to VX. (Carry flag is not changed)
-            vx += instruction[2:]
-            self.program_counter += 1
+            vx += int(instruction[2:], 16)
             self.registers[int(instruction[1])] = vx
         
         elif instruction[0] == '8':
             if instruction == '8XY0':  
                 # 8XY0 Sets VX to the value of VY.
                 self.registers[int(instruction[1])] = vy
-                self.program_counter += 1
             
             elif instruction[3] == '1':  
                 # 8XY1 Sets VX to VX or VY. (Bitwise OR operation)
                 vx |= vy
-                self.program_counter += 1
                 self.registers[int(instruction[1])] = vx
             
             elif instruction[3] == '2':  
                 # 8XY2 Sets VX to VX and VY. (Bitwise AND operation)
                 vx &= vy
-                self.program_counter += 1
                 self.registers[int(instruction[1])] = vx
             
             elif instruction[3] == '3':  
                 # 8XY3 Sets VX to VX xor VY.
                 vx = vx ^ vy
-                self.program_counter += 1
                 self.registers[int(instruction[1])] = vx
             
             elif instruction[3] == '4':  
@@ -157,7 +149,6 @@ class Chip8:
                 if vx > 255:
                     self.carry_flag = 1
                     vx -= 255
-                self.program_counter += 1
                 self.registers[int(instruction[1])] = vx
             
             elif instruction[3] == '5':  
@@ -166,7 +157,6 @@ class Chip8:
                 if vx < 0:
                     self.carry_flag = 1
                     vx += 255
-                self.program_counter += 1
                 self.registers[int(instruction[1])] = vx
             
             elif instruction[3] == '6':  
@@ -174,9 +164,8 @@ class Chip8:
                 if vx == 0:
                     self.carry_flag = 0
                 else:
-                    self.carry_flag = int(vx, 16) & 1
+                    self.carry_flag = vx & 1
                 vx >>= 1
-                self.program_counter += 1
                 self.registers[int(instruction[1])] = vx
             
             elif instruction[3] == '7':  
@@ -188,7 +177,6 @@ class Chip8:
                 msb = vx << 3
                 self.carry_flag = msb
                 vx <<= 1
-                self.program_counter += 1
                 self.registers[int(instruction[1])] = vx
         
         elif instruction[0] == '9':  
@@ -199,7 +187,6 @@ class Chip8:
         elif instruction[0] == 'a':  
             # ANNN Sets I to the address NNN.
             self.I = int(instruction[1:], 16)
-            self.program_counter += 1
         
         elif instruction[0] == 'b':  
             # BNNN Jumps to the address NNN plus V0.
@@ -208,14 +195,35 @@ class Chip8:
         elif instruction[0] == 'c':  
             # CXNN Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN.
             vx = instruction[2:] & random.randint(0, 255)
-            self.program_counter += 1
         
         elif instruction[0] == 'd':  
-            # DXYN Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N+1 pixels. Each row of 8 pixels is read as bit-coded starting from memory location I; I value does not change after the execution of this instruction. As described above, VF is set to 1 if any screen pixels are flipped from set to unset when the sprite is drawn, and to 0 if that does not happen
-                rect = self.registers[int(instruction[1], 16)], self.registers[int(instruction[1], 16)], 8, int(instruction[3]) + 1
-                color = (255, 255, 255)
-                pygame.draw.rect(color=color, rect=rect, surface=screen)
-                self.program_counter += 1
+            # DXYN Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N+1 pixels.
+            # Go through every byte of a sprite
+            for byte in range(int(instruction[3], 16)):
+                # Split sprite into bits
+                sprite = int(self.ram[self.I + byte], 16)
+                sprite_bits = bin(sprite)
+
+                # Bits are XORed into screen
+                WHITE = (255, 255, 255)
+                BLACK = (0, 0, 0)
+                X_OFFSET = 8
+                Y_OFFSET = 16
+                for x, bit in enumerate(sprite_bits[2:]):
+                    bit = int(bit)
+                    pixel_on_screen = pygame.Surface.get_at(screen, (vx+x, vy+byte))
+                    if bool(pixel_on_screen[0]) ^ bool(bit):
+                        #upscale = pygame.Surface((64, 32))
+                        gfxdraw.pixel(screen, vx+x, vy+byte, WHITE)
+                        #screen.blit(pygame.transform.scale(upscale, (640, 320)), (0,0))
+                        pygame.display.update()
+                        self.registers[15] = 1
+                    else:
+                        #upscale = pygame.Surface((64, 32))
+                        gfxdraw.pixel(screen, vx+x, vy+byte, BLACK)
+                        #screen.blit(pygame.transform.scale(upscale, (640, 320)), (0,0))
+                        pygame.display.update()
+                        self.registers[15] = 0
         
         elif instruction[0] == 'e':
             if instruction[2:] == '9e':  
@@ -258,21 +266,24 @@ class Chip8:
                 string_vx = str(vx)
                 for index in range(length):
                     self.ram[self.I + index] = string_vx[index]
-                self.program_counter += 1
             
             elif instruction[2:] == '55':  
                 # FX55 Stores V0 to VX (including VX) in memory starting at address I. The offset from I is increased by 1 for each value written, but I itself is left unmodified.
                 for register in range(int(instruction[1], 16)):
                     self.ram[self.I + register] = self.registers[register]
-                self.program_counter += 1
             
             elif instruction[2:] == '65':  
                 # FX65 Fills V0 to VX (including VX) with values from memory starting at address I. The offset from I is increased by 1 for each value written, but I itself is left unmodified
                 for register in range(int(instruction[1], 16)):
                     self.registers[register] = self.ram[self.I + register]
-                self.program_counter += 1
         else:
             print("Other instruction that didnt get recognized")
+        
+        self.program_counter += 2
+
+def draw_bigger_pixel(screen, x, y, COLOR):
+    rect = (x, y, 8, 16)
+    pygame.draw.rect(screen, COLOR, rect)
 
 if __name__ == "__main__":
     main()
