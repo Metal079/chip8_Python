@@ -8,7 +8,7 @@ import bitarray
 
 def main():   
     chip8 = Chip8()
-    chip8.load_rom("IBM Logo.ch8")
+    chip8.load_rom("test_opcode.ch8")
 
     # pygame parameters
     pygame.init()
@@ -203,7 +203,9 @@ class Chip8:
             for byte in range(int(instruction[3], 16)):
                 # Split sprite into bits
                 sprite = int(self.ram[self.I + byte], 16)
-                sprite_bits = bin(sprite)
+                sprite_bits = list(bin(sprite))
+                while len(sprite_bits) < 10:
+                    sprite_bits.insert(2, '0')
 
                 # Bits are XORed into screen
                 WHITE = (255, 255, 255)
@@ -217,12 +219,12 @@ class Chip8:
                         gfxdraw.pixel(upscale, vx+x, vy+byte, WHITE)
                         screen.blit(pygame.transform.scale(upscale, (640, 320)), (0,0)) # Upscale to window size
                         pygame.display.update()
-                        self.registers[15] = 1
+                        self.carry_flag = 1
                     else:
                         gfxdraw.pixel(upscale, vx+x, vy+byte, BLACK)
                         screen.blit(pygame.transform.scale(upscale, (640, 320)), (0,0)) # Upscale to window size
                         pygame.display.update()
-                        self.registers[15] = 0
+                        self.carry_flag = 0
         
         elif instruction[0] == 'e':
             if instruction[2:] == '9e':  
