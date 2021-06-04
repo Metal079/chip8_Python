@@ -23,7 +23,7 @@ def main():
 
         chip8.execute_instruction(screen, upscale)
 
-        time.sleep(0.01)
+        #time.sleep(0.01)
 
 class Chip8:
     def __init__(self):
@@ -180,7 +180,12 @@ class Chip8:
             
             elif instruction[3] == '7':  
                 # 8XY7 Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there is not.
-                print("8XY7 Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there is not.")
+                vx = vy - vx
+                if vx < 0:
+                    self.carry_flag = 0
+                    vx += 256
+                self.registers[int(instruction[1])] = vx
+                self.carry_flag = 1
             
             elif instruction[3] == 'e':  
                 # 8XYe Stores the most significant bit of VX in VF and then shifts VX to the left by 1
@@ -266,13 +271,12 @@ class Chip8:
             
             elif instruction[2:] == '1E':  
                 # FX1E Adds VX to I. VF is not affected.
-                print("FX1E Adds VX to I. VF is not affected.")
+                self.I += vx
             
             elif instruction[2:] == '29':  
                 # FX29 Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
                 print("FX29 Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.")
                 
-            
             elif instruction[2:] == '33':  
                 # FX33 Stores the binary-coded decimal representation of VX, with the most significant of three digits at the address in I, the middle digit at I plus 1, and the least significant digit at I plus 2. (In other words, take the decimal representation of VX, place the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.)
                 length = len(str(vx))
