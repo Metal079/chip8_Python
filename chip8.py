@@ -3,7 +3,6 @@ import time
 import random
 import pygame
 from pygame import gfxdraw
-import bitarray
 
 
 def main():   
@@ -24,7 +23,7 @@ def main():
 
         chip8.execute_instruction(screen, upscale)
 
-        time.sleep(0.05)
+        time.sleep(0.01)
 
 class Chip8:
     def __init__(self):
@@ -185,9 +184,12 @@ class Chip8:
             
             elif instruction[3] == 'e':  
                 # 8XYe Stores the most significant bit of VX in VF and then shifts VX to the left by 1
-                msb = vx << 3
-                self.carry_flag = msb
+                binary = str(bin(vx))
+                self.carry_flag = int(binary[2])
                 vx <<= 1
+                if vx > 255:
+                    self.carry_flag = 1
+                    vx -= 256
                 self.registers[int(instruction[1])] = vx
         
         elif instruction[0] == '9':  
