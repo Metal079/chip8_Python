@@ -7,14 +7,12 @@ from pygame import gfxdraw
 
 def main():   
     chip8 = Chip8()
-    chip8.load_rom("test_opcode.ch8")
+    chip8.load_rom("c8games/MAZE")
 
     # pygame parameters
     pygame.init()
-    SIZE = width, height = 640, 320
-    BLACK = 0, 0, 0
-    screen = pygame.display.set_mode(SIZE)
-    upscale = pygame.Surface((64, 32))
+    screen = pygame.display.set_mode((640, 320)) # Window that is rendered
+    upscale = pygame.Surface((64, 32)) # surface where pixels are rendered originally then upscaled onto screen
 
     # emulator loop
     while True:
@@ -52,6 +50,8 @@ class Chip8:
         0xF0, 0x80, 0xF0, 0x80, 0xF0, # E
         0xF0, 0x80, 0xF0, 0x80, 0x80  # F
         ]
+        for index, byte in enumerate(fonts):
+            self.ram[index] = byte
 
         # Initialize registers as empty
         self.registers = []
@@ -67,7 +67,7 @@ class Chip8:
     # Open rom file and store bytes(2 bytes at a time) in list
     def load_rom(self, rom_name):
         start_index = 512
-        with open(rom_name, "rb") as rom:
+        with open(rom_name, r"rb") as rom:
             bytes = rom.read(1)
             while bytes != b"":
                 self.ram[start_index] = bytes.hex()
@@ -212,7 +212,7 @@ class Chip8:
         
         elif instruction[0] == 'c':  
             # CXNN Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN.
-            vx = instruction[2:] & random.randint(0, 255)
+            vx = int(instruction[2:], 16) & random.randint(0, 255)
         
         elif instruction[0] == 'd':  
             # DXYN Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N+1 pixels.
@@ -297,10 +297,6 @@ class Chip8:
             print("Other instruction that didnt get recognized")
         
         self.program_counter += 2
-
-def draw_bigger_pixel(screen, x, y, COLOR):
-    rect = (x, y, 8, 16)
-    pygame.draw.rect(screen, COLOR, rect)
 
 if __name__ == "__main__":
     main()
