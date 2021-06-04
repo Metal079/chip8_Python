@@ -97,7 +97,8 @@ class Chip8:
         
         elif instruction[0] == '2':  
             # 2NNN Calls subroutine at NNN.
-            self.stack.append(instruction[1:])
+            self.stack.append(self.program_counter)
+            self.program_counter = int(instruction[1:], 16) - 2
         
         elif instruction[0] == '3':  
             # 3XNN Skips the next instruction if VX equals NN. (Usually the next instruction is a jump to skip a code block)
@@ -122,10 +123,12 @@ class Chip8:
         elif instruction[0] == '7':  
             # 7XNN Adds NN to VX. (Carry flag is not changed)
             vx += int(instruction[2:], 16)
+            if vx > 255:
+                vx -= 256
             self.registers[int(instruction[1])] = vx
         
         elif instruction[0] == '8':
-            if instruction == '8XY0':  
+            if instruction[3] == '0':  
                 # 8XY0 Sets VX to the value of VY.
                 self.registers[int(instruction[1])] = vy
             
@@ -149,23 +152,30 @@ class Chip8:
                 vx += vy
                 if vx > 255:
                     self.carry_flag = 1
-                    vx -= 255
+                    vx -= 256
                 self.registers[int(instruction[1])] = vx
+                self.carry_flag = 0
             
             elif instruction[3] == '5':  
                 # 8XY5 VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there is not.
                 vx -= vy
                 if vx < 0:
-                    self.carry_flag = 1
-                    vx += 255
+                    self.carry_flag = 0
+                    vx += 256
                 self.registers[int(instruction[1])] = vx
+                self.carry_flag = 1
             
             elif instruction[3] == '6':  
                 # 8XY6 Stores the least significant bit of VX in VF and then shifts VX to the right by 1
                 if vx == 0:
                     self.carry_flag = 0
                 else:
-                    self.carry_flag = vx & 1
+                    if vx % 2 == 1:
+                        self.carry_flag = 1
+                        self.registers[15] = 1
+                    else:
+                        self.carry_flag = 0
+                        self.registers[15] = 0
                 vx >>= 1
                 self.registers[int(instruction[1])] = vx
             
@@ -214,7 +224,7 @@ class Chip8:
                 Y_OFFSET = 16
                 for x, bit in enumerate(sprite_bits[2:]):
                     bit = int(bit)
-                    pixel_on_screen = pygame.Surface.get_at(screen, (vx+x, vy+byte))
+                    pixel_on_screen = pygame.Surface.get_at(upscale, (vx+x, vy+byte))
                     if bool(pixel_on_screen[0]) ^ bool(bit):
                         gfxdraw.pixel(upscale, vx+x, vy+byte, WHITE)
                         screen.blit(pygame.transform.scale(upscale, (640, 320)), (0,0)) # Upscale to window size
@@ -266,16 +276,16 @@ class Chip8:
                 length = len(str(vx))
                 string_vx = str(vx)
                 for index in range(length):
-                    self.ram[self.I + index] = string_vx[index]
+                    self.ram[self.I + index] = int(string_vx[index])
             
             elif instruction[2:] == '55':  
                 # FX55 Stores V0 to VX (including VX) in memory starting at address I. The offset from I is increased by 1 for each value written, but I itself is left unmodified.
-                for register in range(int(instruction[1], 16)):
+                for register in range(int(instruction[1], 16) + 1):
                     self.ram[self.I + register] = self.registers[register]
             
             elif instruction[2:] == '65':  
                 # FX65 Fills V0 to VX (including VX) with values from memory starting at address I. The offset from I is increased by 1 for each value written, but I itself is left unmodified
-                for register in range(int(instruction[1], 16)):
+                for register in range(int(instruction[1], 16) + 1):
                     self.registers[register] = self.ram[self.I + register]
         else:
             print("Other instruction that didnt get recognized")
