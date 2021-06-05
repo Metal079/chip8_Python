@@ -7,7 +7,7 @@ from pygame import gfxdraw
 
 def main():   
     chip8 = Chip8()
-    chip8.load_rom("c8games/MAZE")
+    chip8.load_rom("c8games/PONG2")
 
     # pygame parameters
     pygame.init()
@@ -124,7 +124,7 @@ class Chip8:
             vx += int(instruction[2:], 16)
             if vx > 255:
                 vx -= 256
-            self.registers[int(instruction[1])] = vx
+            self.registers[int(instruction[1], 16)] = vx
         
         elif instruction[0] == '8':
             if instruction[3] == '0':  
@@ -219,7 +219,10 @@ class Chip8:
             # Go through every byte of a sprite
             for byte in range(int(instruction[3], 16)):
                 # Split sprite into bits
-                sprite = int(self.ram[self.I + byte], 16)
+                if self.ram[self.I + byte] == 0: 
+                    sprite = self.ram[self.I + byte]
+                else:
+                    sprite = int(self.ram[self.I + byte], 16)
                 sprite_bits = list(bin(sprite))
                 while len(sprite_bits) < 10:
                     sprite_bits.insert(2, '0')
@@ -229,16 +232,27 @@ class Chip8:
                 BLACK = (0, 0, 0)
                 X_OFFSET = 8
                 Y_OFFSET = 16
+                y = byte
                 for x, bit in enumerate(sprite_bits[2:]):
+                    # This wraps the graphics around the display if they are out of bounds
+                    while vx+x < 0:
+                        x += 63
+                    while vx+x > 63:
+                        x -= 64
+                    while vy+y < 0:
+                        y += 31
+                    while vy+y > 31:
+                        y -= 32
+
                     bit = int(bit)
-                    pixel_on_screen = pygame.Surface.get_at(upscale, (vx+x, vy+byte))
+                    pixel_on_screen = pygame.Surface.get_at(upscale, (vx+x, vy+y))
                     if bool(pixel_on_screen[0]) ^ bool(bit):
-                        gfxdraw.pixel(upscale, vx+x, vy+byte, WHITE)
+                        gfxdraw.pixel(upscale, vx+x, vy+y, WHITE)
                         screen.blit(pygame.transform.scale(upscale, (640, 320)), (0,0)) # Upscale to window size
                         pygame.display.update()
                         self.carry_flag = 1
                     else:
-                        gfxdraw.pixel(upscale, vx+x, vy+byte, BLACK)
+                        gfxdraw.pixel(upscale, vx+x, vy+y, BLACK)
                         screen.blit(pygame.transform.scale(upscale, (640, 320)), (0,0)) # Upscale to window size
                         pygame.display.update()
                         self.carry_flag = 0
