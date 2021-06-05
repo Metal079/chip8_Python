@@ -7,7 +7,7 @@ from pygame import gfxdraw
 
 def main():   
     chip8 = Chip8()
-    chip8.load_rom("PONG")
+    chip8.load_rom("TANK")
 
     # pygame parameters
     pygame.init()
@@ -20,8 +20,6 @@ def main():
             if event.type == pygame.QUIT: sys.exit()
 
         chip8.execute_instruction(screen, upscale)
-
-        #time.sleep(0.01)
 
 class Chip8:
     def __init__(self):
@@ -293,7 +291,10 @@ class Chip8:
             
             elif instruction[2:] == '29':  
                 # FX29 Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
-                self.I = int(vx, 16) * 5
+                if isinstance(vx, int):
+                    self.I = vx * 5
+                else:
+                    self.I = int(vx, 16) * 5
                 
             elif instruction[2:] == '33':  
                 # FX33 Stores the binary-coded decimal representation of VX, with the most significant of three digits at the address in I, the middle digit at I plus 1, and the least significant digit at I plus 2. (In other words, take the decimal representation of VX, place the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.)
