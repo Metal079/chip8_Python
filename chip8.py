@@ -7,7 +7,7 @@ from pygame import gfxdraw
 
 def main():   
     chip8 = Chip8()
-    chip8.load_rom("c8games/PONG2")
+    chip8.load_rom("BC_test.ch8")
 
     # pygame parameters
     pygame.init()
@@ -60,9 +60,9 @@ class Chip8:
 
         self.stack =[]
         self.program_counter = 512
-        #self.rom_instructions = [] 
         self.I = 0
-        self.carry_flag = 0
+        self.delay_timer = 0
+        self.sound_timer = 0
 
     # Open rom file and store bytes(2 bytes at a time) in list
     def load_rom(self, rom_name):
@@ -150,30 +150,30 @@ class Chip8:
                 # 8XY4 Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there is not.
                 vx += vy
                 if vx > 255:
-                    self.carry_flag = 1
+                    self.registers[15] = 1
                     vx -= 256
+                else:
+                    self.registers[15] = 0
                 self.registers[int(instruction[1])] = vx
-                self.carry_flag = 0
             
             elif instruction[3] == '5':  
                 # 8XY5 VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there is not.
                 vx -= vy
                 if vx < 0:
-                    self.carry_flag = 0
+                    self.registers[15] = 0
                     vx += 256
+                else:
+                    self.registers[15] = 1
                 self.registers[int(instruction[1])] = vx
-                self.carry_flag = 1
-            
+
             elif instruction[3] == '6':  
                 # 8XY6 Stores the least significant bit of VX in VF and then shifts VX to the right by 1
                 if vx == 0:
-                    self.carry_flag = 0
+                    self.registers[15] = 0
                 else:
                     if vx % 2 == 1:
-                        self.carry_flag = 1
                         self.registers[15] = 1
                     else:
-                        self.carry_flag = 0
                         self.registers[15] = 0
                 vx >>= 1
                 self.registers[int(instruction[1])] = vx
@@ -182,18 +182,22 @@ class Chip8:
                 # 8XY7 Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there is not.
                 vx = vy - vx
                 if vx < 0:
-                    self.carry_flag = 0
+                    self.registers[15] = 0
                     vx += 256
+                else:
+                    self.registers[15] = 1
                 self.registers[int(instruction[1])] = vx
-                self.carry_flag = 1
             
             elif instruction[3] == 'e':  
                 # 8XYe Stores the most significant bit of VX in VF and then shifts VX to the left by 1
                 binary = str(bin(vx))
-                self.carry_flag = int(binary[2])
+                if len(binary) < 10: # if number is less than 8 bits so its sig bit is automatically 0
+                    self.registers[15] = 0
+                else:
+                    self.registers[15] = int(binary[2])
                 vx <<= 1
                 if vx > 255:
-                    self.carry_flag = 1
+                    self.registers[15] = 1
                     vx -= 256
                 self.registers[int(instruction[1])] = vx
         
@@ -219,7 +223,7 @@ class Chip8:
             # Go through every byte of a sprite
             for byte in range(int(instruction[3], 16)):
                 # Split sprite into bits
-                if self.ram[self.I + byte] == 0: 
+                if isinstance(self.ram[self.I + byte], int): 
                     sprite = self.ram[self.I + byte]
                 else:
                     sprite = int(self.ram[self.I + byte], 16)
@@ -250,12 +254,12 @@ class Chip8:
                         gfxdraw.pixel(upscale, vx+x, vy+y, WHITE)
                         screen.blit(pygame.transform.scale(upscale, (640, 320)), (0,0)) # Upscale to window size
                         pygame.display.update()
-                        self.carry_flag = 1
+                        self.registers[15] = 1
                     else:
                         gfxdraw.pixel(upscale, vx+x, vy+y, BLACK)
                         screen.blit(pygame.transform.scale(upscale, (640, 320)), (0,0)) # Upscale to window size
                         pygame.display.update()
-                        self.carry_flag = 0
+                        self.registers[15] = 0
         
         elif instruction[0] == 'e':
             if instruction[2:] == '9e':  
@@ -289,7 +293,7 @@ class Chip8:
             
             elif instruction[2:] == '29':  
                 # FX29 Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
-                print("FX29 Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.")
+                self.I = vx * 5
                 
             elif instruction[2:] == '33':  
                 # FX33 Stores the binary-coded decimal representation of VX, with the most significant of three digits at the address in I, the middle digit at I plus 1, and the least significant digit at I plus 2. (In other words, take the decimal representation of VX, place the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.)
@@ -307,6 +311,7 @@ class Chip8:
                 # FX65 Fills V0 to VX (including VX) with values from memory starting at address I. The offset from I is increased by 1 for each value written, but I itself is left unmodified
                 for register in range(int(instruction[1], 16) + 1):
                     self.registers[register] = self.ram[self.I + register]
+                self.I += int(instruction[1], 16) + 1 # UNSURE IF NEEDED, CONFLICTING INFO
         else:
             print("Other instruction that didnt get recognized")
         
