@@ -7,7 +7,7 @@ from pygame import gfxdraw
 
 def main():   
     chip8 = Chip8()
-    chip8.load_rom("TANK")
+    chip8.load_rom("c8games/PUZZLE")
 
     # pygame parameters
     pygame.init()
@@ -215,6 +215,7 @@ class Chip8:
         elif instruction[0] == 'c':  
             # CXNN Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN.
             vx = int(instruction[2:], 16) & random.randint(0, 255)
+            self.registers[int(instruction[1])] = vx
         
         elif instruction[0] == 'd':  
             # DXYN Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N+1 pixels.
@@ -271,7 +272,9 @@ class Chip8:
         elif instruction[0] == 'f':
             if instruction[2:] == '07':  
                 # FX07 Sets VX to the value of the delay timer.
-                print("FX07 Sets VX to the value of the delay timer.")
+                vx = self.delay_timer
+                self.registers[int(instruction[1])] = vx
+
             
             elif instruction[2:] == '0A':  
                 # FX0A A key press is awaited, and then stored in VX. (Blocking Operation. All instruction halted until next key event)
@@ -279,11 +282,11 @@ class Chip8:
             
             elif instruction[2:] == '15': 
                 # FX15 Sets the delay timer to VX.
-                print("FX15 Sets the delay timer to VX.")
+                self.delay_timer = vx
             
             elif instruction[2:] == '18':  
                 # FX18 Sets the sound timer to VX.
-                print("FX18 Sets the sound timer to VX.")
+                self.sound_timer = vx
             
             elif instruction[2:] == '1E':  
                 # FX1E Adds VX to I. VF is not affected.
