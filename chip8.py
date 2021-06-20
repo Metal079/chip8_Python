@@ -1,13 +1,14 @@
 import sys
 import time
 import random
+
 import pygame
 from pygame import gfxdraw
 
 
 def main():   
     chip8 = Chip8()
-    chip8.load_rom("INVADERS")
+    chip8.load_rom("PONG")
 
     # pygame parameters
     pygame.init()
@@ -16,6 +17,7 @@ def main():
 
     # emulator loop
     while True:
+        # Check for events like keypresses and exiting window
         for event in pygame.event.get():
             if event.type == pygame.QUIT: 
                 sys.exit()
@@ -30,6 +32,7 @@ def main():
         for cycle in range(10):
             chip8.execute_instruction(screen, upscale)
 
+        # Delay timer decrements once for every 10 cpu cycles
         if chip8.delay_timer > 0:
             chip8.delay_timer -= 1
 
@@ -88,28 +91,28 @@ class Chip8:
                 bytes = rom.read(1)
                 start_index += 1
 
-    # Decode keypress
+    # Update keypresses
     def change_key_state(self, key, is_pressed):
         keys = {        
-            pygame.K_1: 1,
-            pygame.K_2: 2,
-            pygame.K_3: 3,
-            pygame.K_4: 12,
-                
-            pygame.K_q: 4,
-            pygame.K_w: 5,
-            pygame.K_e: 6,
-            pygame.K_r: 13,
+            pygame.K_1: 1,  # 1
+            pygame.K_2: 2,  # 2
+            pygame.K_3: 3,  # 3
+            pygame.K_4: 12, # C
+                 
+            pygame.K_q: 4,  # 4
+            pygame.K_w: 5,  # 5
+            pygame.K_e: 6,  # 6
+            pygame.K_r: 13, # D
             
-            pygame.K_a: 7,
-            pygame.K_s: 8,
-            pygame.K_d: 9,
-            pygame.K_f: 14,
+            pygame.K_a: 7,  # 7
+            pygame.K_s: 8,  # 8
+            pygame.K_d: 9,  # 9
+            pygame.K_f: 14, # E
             
-            pygame.K_z: 10,
-            pygame.K_x: 0,
-            pygame.K_c: 11,
-            pygame.K_v: 15
+            pygame.K_z: 10, # A
+            pygame.K_x: 0,  # 0
+            pygame.K_c: 11, # B
+            pygame.K_v: 15  # F
             }
         
         chip8_key = keys[key]
@@ -118,8 +121,7 @@ class Chip8:
         else:
             self.pressed_keys[chip8_key] = 0
 
-
-    # Decode what instruction we need to do and runs it
+    # Decode what instruction we need to do and run it
     def execute_instruction(self, screen, upscale):
         instruction = self.ram[self.program_counter] + self.ram[self.program_counter + 1]
         vx = self.registers[int(instruction[1], 16)]
