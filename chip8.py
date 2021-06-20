@@ -7,7 +7,7 @@ from pygame import gfxdraw
 
 def main():   
     chip8 = Chip8()
-    chip8.load_rom("c8games/PUZZLE")
+    chip8.load_rom("PONG")
 
     # pygame parameters
     pygame.init()
@@ -17,7 +17,11 @@ def main():
     # emulator loop
     while True:
         for event in pygame.event.get():
-            if event.type == pygame.QUIT: sys.exit()
+            if event.type == pygame.QUIT: 
+                sys.exit()
+
+            elif event.type == pygame.KEYDOWN:
+                chip8.get_key_press(event.key)                
 
         chip8.execute_instruction(screen, upscale)
 
@@ -61,6 +65,7 @@ class Chip8:
         self.I = 0
         self.delay_timer = 0
         self.sound_timer = 0
+        self.current_key = None # current keypress, default is None
 
     # Open rom file and store bytes(2 bytes at a time) in list
     def load_rom(self, rom_name):
@@ -71,6 +76,33 @@ class Chip8:
                 self.ram[start_index] = bytes.hex()
                 bytes = rom.read(1)
                 start_index += 1
+
+    # Decode keypress
+    def get_key_press(self, key):
+        keys = {        
+            pygame.K_1: 1,
+            pygame.K_2: 2,
+            pygame.K_3: 3,
+            pygame.K_4: 12,
+                
+            pygame.K_q: 4,
+            pygame.K_w: 5,
+            pygame.K_e: 6,
+            pygame.K_r: 13,
+            
+            pygame.K_a: 7,
+            pygame.K_s: 8,
+            pygame.K_d: 9,
+            pygame.K_f: 14,
+            
+            pygame.K_z: 10,
+            pygame.K_x: 0,
+            pygame.K_c: 11,
+            pygame.K_v: 15
+            }
+        
+        self.current_key = keys[key]
+
 
     # Decode what instruction we need to do and runs it
     def execute_instruction(self, screen, upscale):
@@ -132,17 +164,17 @@ class Chip8:
             elif instruction[3] == '1':  
                 # 8XY1 Sets VX to VX or VY. (Bitwise OR operation)
                 vx |= vy
-                self.registers[int(instruction[1])] = vx
+                self.registers[int(instruction[1], 16)] = vx
             
             elif instruction[3] == '2':  
                 # 8XY2 Sets VX to VX and VY. (Bitwise AND operation)
                 vx &= vy
-                self.registers[int(instruction[1])] = vx
+                self.registers[int(instruction[1], 16)] = vx
             
             elif instruction[3] == '3':  
                 # 8XY3 Sets VX to VX xor VY.
                 vx = vx ^ vy
-                self.registers[int(instruction[1])] = vx
+                self.registers[int(instruction[1], 16)] = vx
             
             elif instruction[3] == '4':  
                 # 8XY4 Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there is not.
@@ -174,7 +206,7 @@ class Chip8:
                     else:
                         self.registers[15] = 0
                 vx >>= 1
-                self.registers[int(instruction[1])] = vx
+                self.registers[int(instruction[1], 16)] = vx
             
             elif instruction[3] == '7':  
                 # 8XY7 Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there is not.
@@ -184,7 +216,7 @@ class Chip8:
                     vx += 256
                 else:
                     self.registers[15] = 1
-                self.registers[int(instruction[1])] = vx
+                self.registers[int(instruction[1], 16)] = vx
             
             elif instruction[3] == 'e':  
                 # 8XYe Stores the most significant bit of VX in VF and then shifts VX to the left by 1
@@ -197,7 +229,7 @@ class Chip8:
                 if vx > 255:
                     self.registers[15] = 1
                     vx -= 256
-                self.registers[int(instruction[1])] = vx
+                self.registers[int(instruction[1], 16)] = vx
         
         elif instruction[0] == '9':  
             # 9XY0 Skips the next instruction if VX does not equal VY. (Usually the next instruction is a jump to skip a code block)
@@ -215,7 +247,7 @@ class Chip8:
         elif instruction[0] == 'c':  
             # CXNN Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN.
             vx = int(instruction[2:], 16) & random.randint(0, 255)
-            self.registers[int(instruction[1])] = vx
+            self.registers[int(instruction[1], 16)] = vx
         
         elif instruction[0] == 'd':  
             # DXYN Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N+1 pixels.
@@ -263,19 +295,28 @@ class Chip8:
         elif instruction[0] == 'e':
             if instruction[2:] == '9e':  
                 # EX9E Skips the next instruction if the key stored in VX is pressed. (Usually the next instruction is a jump to skip a code block)
-                print("EX9E Skips the next instruction if the key stored in VX is pressed. (Usually the next instruction is a jump to skip a code block)")
+                if self.current_key is None:
+                    pass
+                
+                elif self.current_key == vx:
+                    self.program_counter += 2
+                    self.current_key = None
             
             elif instruction[2:] == 'a1':  
                 # EXA1 Skips the next instruction if the key stored in VX is not pressed. (Usually the next instruction is a jump to skip a code block)
-                print("EXA1 Skips the next instruction if the key stored in VX is not pressed. (Usually the next instruction is a jump to skip a code block)")
-        
+                if self.current_key is None:
+                    pass
+                
+                elif self.current_key != vx:
+                    self.program_counter += 2
+                    self.current_key = None
+
         elif instruction[0] == 'f':
             if instruction[2:] == '07':  
                 # FX07 Sets VX to the value of the delay timer.
                 vx = self.delay_timer
-                self.registers[int(instruction[1])] = vx
+                self.registers[int(instruction[1], 16)] = vx
 
-            
             elif instruction[2:] == '0A':  
                 # FX0A A key press is awaited, and then stored in VX. (Blocking Operation. All instruction halted until next key event)
                 print("FX0A A key press is awaited, and then stored in VX. (Blocking Operation. All instruction halted until next key event)")
@@ -320,6 +361,8 @@ class Chip8:
             print("Other instruction that didnt get recognized")
         
         self.program_counter += 2
+        if self.delay_timer > 0: 
+            self.delay_timer -= 1
 
 if __name__ == "__main__":
     main()
