@@ -7,7 +7,7 @@ from pygame import gfxdraw
 
 def main():   
     chip8 = Chip8()
-    chip8.load_rom("PONG")
+    chip8.load_rom("INVADERS")
 
     # pygame parameters
     pygame.init()
@@ -21,9 +21,18 @@ def main():
                 sys.exit()
 
             elif event.type == pygame.KEYDOWN:
-                chip8.get_key_press(event.key)                
+                chip8.change_key_state(event.key, True) 
+            
+            elif event.type == pygame.KEYUP:
+                chip8.change_key_state(event.key, False) 
 
-        chip8.execute_instruction(screen, upscale)
+        # Assume 10 instructions run for every increment of delay timer
+        for cycle in range(10):
+            chip8.execute_instruction(screen, upscale)
+
+        if chip8.delay_timer > 0:
+            chip8.delay_timer -= 1
+
 
 class Chip8:
     def __init__(self):
@@ -63,9 +72,11 @@ class Chip8:
         self.stack =[]
         self.program_counter = 512
         self.I = 0
-        self.delay_timer = 0
-        self.sound_timer = 0
-        self.current_key = None # current keypress, default is None
+        self.delay_timer = 60
+        self.sound_timer = 60
+        self.pressed_keys = [] # current keypress, default is None
+        for key in range(16):
+            self.pressed_keys.append(0)
 
     # Open rom file and store bytes(2 bytes at a time) in list
     def load_rom(self, rom_name):
@@ -78,7 +89,7 @@ class Chip8:
                 start_index += 1
 
     # Decode keypress
-    def get_key_press(self, key):
+    def change_key_state(self, key, is_pressed):
         keys = {        
             pygame.K_1: 1,
             pygame.K_2: 2,
@@ -101,7 +112,11 @@ class Chip8:
             pygame.K_v: 15
             }
         
-        self.current_key = keys[key]
+        chip8_key = keys[key]
+        if is_pressed:
+            self.pressed_keys[chip8_key] = 1
+        else:
+            self.pressed_keys[chip8_key] = 0
 
 
     # Decode what instruction we need to do and runs it
@@ -295,21 +310,13 @@ class Chip8:
         elif instruction[0] == 'e':
             if instruction[2:] == '9e':  
                 # EX9E Skips the next instruction if the key stored in VX is pressed. (Usually the next instruction is a jump to skip a code block)
-                if self.current_key is None:
-                    pass
-                
-                elif self.current_key == vx:
+                if self.pressed_keys[vx] == 1:
                     self.program_counter += 2
-                    self.current_key = None
             
             elif instruction[2:] == 'a1':  
                 # EXA1 Skips the next instruction if the key stored in VX is not pressed. (Usually the next instruction is a jump to skip a code block)
-                if self.current_key is None:
-                    pass
-                
-                elif self.current_key != vx:
+                if self.pressed_keys[vx] == 0:
                     self.program_counter += 2
-                    self.current_key = None
 
         elif instruction[0] == 'f':
             if instruction[2:] == '07':  
@@ -361,8 +368,6 @@ class Chip8:
             print("Other instruction that didnt get recognized")
         
         self.program_counter += 2
-        if self.delay_timer > 0: 
-            self.delay_timer -= 1
 
 if __name__ == "__main__":
     main()
