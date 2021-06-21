@@ -28,8 +28,8 @@ def main():
             elif event.type == pygame.KEYUP:
                 chip8.change_key_state(event.key, False) 
 
-        # Assume 10 instructions run for every increment of delay timer
-        for cycle in range(10):
+        # Assume 6 instructions run for every decrement of delay timer
+        for cycle in range(6):
             chip8.execute_instruction(screen, upscale)
 
         # Delay timer decrements once for every 10 cpu cycles
@@ -185,7 +185,7 @@ class Chip8:
             
             elif instruction[3] == '2':  
                 # 8XY2 Sets VX to VX and VY. (Bitwise AND operation)
-                vx &= vy
+                vx = vx &vy
                 self.registers[int(instruction[1], 16)] = vx
             
             elif instruction[3] == '3':  
@@ -326,7 +326,7 @@ class Chip8:
                 vx = self.delay_timer
                 self.registers[int(instruction[1], 16)] = vx
 
-            elif instruction[2:] == '0A':  
+            elif instruction[2:] == '0a':  
                 # FX0A A key press is awaited, and then stored in VX. (Blocking Operation. All instruction halted until next key event)
                 print("FX0A A key press is awaited, and then stored in VX. (Blocking Operation. All instruction halted until next key event)")
             
@@ -338,9 +338,12 @@ class Chip8:
                 # FX18 Sets the sound timer to VX.
                 self.sound_timer = vx
             
-            elif instruction[2:] == '1E':  
+            elif instruction[2:] == '1e':  
                 # FX1E Adds VX to I. VF is not affected.
-                self.I += int(vx, 16)
+                if isinstance(vx, int):
+                    self.I += vx
+                else:
+                    self.I += int(vx, 16)
             
             elif instruction[2:] == '29':  
                 # FX29 Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
