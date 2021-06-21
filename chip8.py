@@ -136,6 +136,9 @@ class Chip8:
             elif instruction == '00ee':  
                 # 00EE Returns from a subroutine.
                 self.program_counter = self.stack.pop()
+
+            else:
+                print("Other instruction that didnt get recognized")
         
         elif instruction[0] == '1':  
             # 1NNN Jumps to address NNN.
@@ -247,6 +250,9 @@ class Chip8:
                     self.registers[15] = 1
                     vx -= 256
                 self.registers[int(instruction[1], 16)] = vx
+
+            else:
+                print("Other instruction that didnt get recognized")
         
         elif instruction[0] == '9':  
             # 9XY0 Skips the next instruction if VX does not equal VY. (Usually the next instruction is a jump to skip a code block)
@@ -319,6 +325,8 @@ class Chip8:
                 # EXA1 Skips the next instruction if the key stored in VX is not pressed. (Usually the next instruction is a jump to skip a code block)
                 if self.pressed_keys[vx] == 0:
                     self.program_counter += 2
+            else:
+                print("Other instruction that didnt get recognized")
 
         elif instruction[0] == 'f':
             if instruction[2:] == '07':  
@@ -369,6 +377,10 @@ class Chip8:
                 for register in range(int(instruction[1], 16) + 1):
                     self.registers[register] = self.ram[self.I + register]
                 self.I += int(instruction[1], 16) + 1 # UNSURE IF NEEDED, CONFLICTING INFO
+
+            else:
+                print("Other instruction that didnt get recognized")
+                
         else:
             print("Other instruction that didnt get recognized")
         
