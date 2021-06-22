@@ -8,7 +8,7 @@ from pygame import gfxdraw
 
 def main():   
     chip8 = Chip8()
-    chip8.load_rom("PONG")
+    chip8.load_rom("INVADERS")
 
     # pygame parameters
     pygame.init()
@@ -41,9 +41,8 @@ class Chip8:
     def __init__(self):
         # Initialize ram as empty
         self.ram = []
-        empty_byte = 0
         for byte in range(4096):
-            self.ram.append(empty_byte)
+            self.ram.append("0")
 
         # Store sprite data in lower ram (0x000 to 0x1FF)
         fonts = [ 
@@ -70,7 +69,7 @@ class Chip8:
         # Initialize registers as empty
         self.registers = []
         for reg in range(16):
-            self.registers.append(empty_byte)
+            self.registers.append(0)
 
         self.stack =[]
         self.program_counter = 512
@@ -130,8 +129,9 @@ class Chip8:
             if instruction == '00e0':  
                 # 00E0 Clears the screen.
                 black = 0, 0, 0
-                screen.fill(black)
-                pygame.display.flip()
+                upscale.fill(black)
+                screen.blit(pygame.transform.scale(upscale, (640, 320)), (0,0))
+                pygame.display.update()
             
             elif instruction == '00ee':  
                 # 00EE Returns from a subroutine.
@@ -188,7 +188,7 @@ class Chip8:
             
             elif instruction[3] == '2':  
                 # 8XY2 Sets VX to VX and VY. (Bitwise AND operation)
-                vx = vx &vy
+                vx = vx & vy
                 self.registers[int(instruction[1], 16)] = vx
             
             elif instruction[3] == '3':  
@@ -265,7 +265,7 @@ class Chip8:
         
         elif instruction[0] == 'b':  
             # BNNN Jumps to the address NNN plus V0.
-            self.program_counter = instruction[1:] + self.registers[0]
+            self.program_counter = int(instruction[1:], 16) + self.registers[0]
         
         elif instruction[0] == 'c':  
             # CXNN Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN.
@@ -336,7 +336,12 @@ class Chip8:
 
             elif instruction[2:] == '0a':  
                 # FX0A A key press is awaited, and then stored in VX. (Blocking Operation. All instruction halted until next key event)
-                print("FX0A A key press is awaited, and then stored in VX. (Blocking Operation. All instruction halted until next key event)")
+                for key in self.pressed_keys:
+                    if key == 1: # Go forward to next instruction if keypress available
+                        self.registers[int(instruction[1], 16)] = self.pressed_keys.index(1)
+                        break
+                    else:
+                        self.program_counter -= 2 # Redo instruction until we get a keypress
             
             elif instruction[2:] == '15': 
                 # FX15 Sets the delay timer to VX.
@@ -348,39 +353,34 @@ class Chip8:
             
             elif instruction[2:] == '1e':  
                 # FX1E Adds VX to I. VF is not affected.
-                if isinstance(vx, int):
-                    self.I += vx
-                else:
-                    self.I += int(vx, 16)
+                self.I += vx
             
             elif instruction[2:] == '29':  
                 # FX29 Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
-                if isinstance(vx, int):
-                    self.I = vx * 5
-                else:
-                    self.I = int(vx, 16) * 5
+                self.I = vx * 5
                 
             elif instruction[2:] == '33':  
                 # FX33 Stores the binary-coded decimal representation of VX, with the most significant of three digits at the address in I, the middle digit at I plus 1, and the least significant digit at I plus 2. (In other words, take the decimal representation of VX, place the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.)
                 length = len(str(vx))
                 string_vx = str(vx)
                 for index in range(length):
-                    self.ram[self.I + index] = int(string_vx[index])
+                    self.ram[self.I + index] = string_vx[index]
             
             elif instruction[2:] == '55':  
                 # FX55 Stores V0 to VX (including VX) in memory starting at address I. The offset from I is increased by 1 for each value written, but I itself is left unmodified.
                 for register in range(int(instruction[1], 16) + 1):
-                    self.ram[self.I + register] = self.registers[register]
+                    self.ram[self.I + register] = str(hex(self.registers[register]))
+                #self.I += int(instruction[1], 16) + 1 
             
             elif instruction[2:] == '65':  
                 # FX65 Fills V0 to VX (including VX) with values from memory starting at address I. The offset from I is increased by 1 for each value written, but I itself is left unmodified
                 for register in range(int(instruction[1], 16) + 1):
-                    self.registers[register] = self.ram[self.I + register]
-                self.I += int(instruction[1], 16) + 1 # UNSURE IF NEEDED, CONFLICTING INFO
+                    self.registers[register] = int(self.ram[self.I + register], 16)
+                #self.I += int(instruction[1], 16) + 1 # UNSURE IF NEEDED, CONFLICTING INFO
 
             else:
                 print("Other instruction that didnt get recognized")
-                
+
         else:
             print("Other instruction that didnt get recognized")
         
