@@ -8,7 +8,7 @@ from pygame import gfxdraw
 
 def main():   
     chip8 = Chip8()
-    chip8.load_rom("INVADERS")
+    chip8.load_rom("c8games\TETRIS")
 
     # pygame parameters
     pygame.init()
@@ -35,6 +35,7 @@ def main():
         # Delay timer decrements once for every 10 cpu cycles
         if chip8.delay_timer > 0:
             chip8.delay_timer -= 1
+            chip8.sound_timer -= 1
 
 
 class Chip8:
@@ -74,8 +75,8 @@ class Chip8:
         self.stack =[]
         self.program_counter = 512
         self.I = 0
-        self.delay_timer = 60
-        self.sound_timer = 60
+        self.delay_timer = 255
+        self.sound_timer = 255
         self.pressed_keys = [] # current keypress, default is None
         for key in range(16):
             self.pressed_keys.append(0)
@@ -114,7 +115,10 @@ class Chip8:
             pygame.K_v: 15  # F
             }
         
-        chip8_key = keys[key]
+        try:
+            chip8_key = keys[key]
+        except: # Ignore input that isnt one of the keys
+            return
         if is_pressed:
             self.pressed_keys[chip8_key] = 1
         else:
@@ -308,12 +312,15 @@ class Chip8:
                         gfxdraw.pixel(upscale, vx+x, vy+y, WHITE)
                         screen.blit(pygame.transform.scale(upscale, (640, 320)), (0,0)) # Upscale to window size
                         pygame.display.update()
-                        self.registers[15] = 1
+                        self.registers[15] = 0
                     else:
                         gfxdraw.pixel(upscale, vx+x, vy+y, BLACK)
                         screen.blit(pygame.transform.scale(upscale, (640, 320)), (0,0)) # Upscale to window size
                         pygame.display.update()
-                        self.registers[15] = 0
+                        if pixel_on_screen[0] == 1:
+                            self.registers[15] = 1
+                        else:
+                            self.registers[15] = 0
         
         elif instruction[0] == 'e':
             if instruction[2:] == '9e':  
